@@ -26,6 +26,9 @@ namespace SparseMatrix
             {
                 Console.WriteLine(key);
             }
+
+            int[,] arr = new int[0, 0];
+            SparseMatrix m2 = new SparseMatrix(arr);
         }
     }
 }

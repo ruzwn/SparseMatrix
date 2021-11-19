@@ -58,6 +58,11 @@ namespace SparseMatrix
 		public SparseMatrix(int[,] table)
 		{
 			_size = (table.GetLength(0), table.GetLength(1));
+			if (_size.row == 0 || _size.col == 0)
+			{
+				_size = (1, 1);
+				return;
+			}
 			elements = new Dictionary<(int, int), int>();
 			
 			for (int i = 0; i < _size.row; ++i)
