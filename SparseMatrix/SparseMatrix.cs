@@ -1,50 +1,50 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data;
 using System.Runtime.InteropServices;
 
 namespace SparseMatrix
 {
 	public class SparseMatrix : IEnumerable
 	{
+		private static readonly Point defaultElem = new Point();
+		
 		private readonly (int row, int col) _size;
 
 		public (int, int) Size => _size;
 
-		private readonly Dictionary<(int, int), int> elements;
+		private readonly Dictionary<(int, int), Point> elements;
 
-		private bool IsOutOfRange(int row, int col)
+		private (int, int) GetLoopSize(int row, int col)
 		{
-			if (row == 0 || col == 0)
-				return true;
-			if (row > _size.row || col > _size.col)
-				return true;
+			if (row < 1)
+				row = row % _size.row + _size.row;
+			else if (row > _size.row)
+				row = (row % _size.row == 0) ? _size.row : row % _size.row;
+
+			if (col < 1)
+				col = col % _size.col + _size.col;
+			else if (col > _size.col)
+				col = (col % _size.col == 0) ? _size.col : col % _size.col;
 			
-			return false;
+			return (row, col);
 		}
 		
-		public int this[int row, int col] // access by matrix index
+		public Point this[int row, int col] // access by matrix index
 		{
 			get
 			{
-				(row, col) = (Math.Abs(row), Math.Abs(col));
-				if (IsOutOfRange(row, col))
-					throw new Exception("Index out of range");
+				(row, col) = GetLoopSize(row, col);
 				
-				foreach (var (key, value) in elements)
-				{
-					if (key != (row, col)) continue;
-					return value;
-				}
-
-				return 0; // default element
+				return elements.ContainsKey((row, col)) ? elements[(row, col)] : defaultElem;
 			}
 		}
 
 		public SparseMatrix()
 		{
 			_size = (1, 1);
-			elements = new Dictionary<(int, int), int>();
+			elements = new Dictionary<(int, int), Point>();
 		}
 
 		public SparseMatrix(int row, int col)
@@ -52,24 +52,24 @@ namespace SparseMatrix
 			row = Math.Max(Math.Abs(row), 1);
 			col = Math.Max(Math.Abs(col), 1);
 			_size = (row, col);
-			elements = new Dictionary<(int, int), int>();
+			elements = new Dictionary<(int, int), Point>();
 		}
 
-		public SparseMatrix(int[,] table)
+		public SparseMatrix(Point[,] table)
 		{
 			_size = (table.GetLength(0), table.GetLength(1));
+			elements = new Dictionary<(int, int), Point>();
 			if (_size.row == 0 || _size.col == 0)
 			{
 				_size = (1, 1);
 				return;
 			}
-			elements = new Dictionary<(int, int), int>();
 			
 			for (int i = 0; i < _size.row; ++i)
 			{
 				for (int j = 0; j < _size.col; ++j)
 				{
-					if (table[i, j] != 0)
+					if (table[i, j].Position != (0, 0))
 						elements.Add((i, j), table[i, j]);
 				}
 			}
@@ -78,97 +78,54 @@ namespace SparseMatrix
 		public SparseMatrix(SparseMatrix other)
 		{
 			_size = other._size;
-			elements = new Dictionary<(int, int), int>(other.elements);
+			elements = new Dictionary<(int, int), Point>(other.elements);
 		}
 		
-		public bool ChangeElem(int row, int col, int value)
+		public bool ChangeElem(int row, int col, Point value)
 		{
-			(row, col) = (Math.Abs(row), Math.Abs(col));
-			if (IsOutOfRange(row, col))
-				throw new Exception("Index out of range");
-			
-			foreach (var (key, i) in elements)
+			(row, col) = GetLoopSize(row, col);
+
+			if (elements.ContainsKey((row, col)))
 			{
-				if (key != (row, col)) continue;
-				elements[key] = value;
+				elements[(row, col)] = value;
 				return true;
 			}
 			
 			elements.Add((row, col), value);
 			return true;
 		}
-
-		public bool DeleteElem(int value)
-		{
-			foreach (var (key, val) in elements)
-			{
-				if (val != value) continue;
-				elements.Remove(key);
-				return true;
-			}
-
-			return false;
-		}
 		
 		public bool DeleteElem(int row, int col)
 		{
-			foreach (var (key, i) in elements)
-			{
-				if (key != (row, col)) continue;
-				elements.Remove(key);
-				return true;
-			}
+			(row, col) = GetLoopSize(row, col);
 
-			return false;
+			if (!elements.ContainsKey((row, col))) return false;
+			
+			elements.Remove((row, col));
+			return true;
+
 		}
 
-		private void AddNeighbors(Dictionary<(int, int), int> neighbors, int row, int col)
+		private void AddNeighbors(Dictionary<(int, int), Point> neighbors, int row, int col)
 		{
+			(row, col) = GetLoopSize(row, col);
+
 			for (int i = -1; i < 2; ++i)
 			{
 				for (int j = -1; j < 2; ++j)
 				{
 					if (i == 0 && j == 0) continue; // сам элемент
 					
-					if (row + i == 0)
-					{
-						if (col + j == 0)
-							neighbors.Add((_size.row, _size.col), this[_size.row, _size.col]);
-						else if (col + j > _size.col)
-							neighbors.Add((_size.row, 1), this[_size.row, 1]);
-						else
-							neighbors.Add((_size.row, col + j), this[_size.row, col + j]);
-					}
-					else if (row + i > _size.row)
-					{
-						if (col + j == 0)
-							neighbors.Add((1, _size.col), this[1, _size.col]);
-						else if (col + j > _size.col)
-							neighbors.Add((1, 1), this[1, 1]);
-						else
-							neighbors.Add((1, col + j), this[1, col + j]);
-					}
-					else
-					{
-						if (col + j == 0)
-							neighbors.Add((row + i, _size.col), this[row + i, _size.col]);
-						else if (col + j > _size.col)
-							neighbors.Add((row + i, 1), this[row + i, 1]);
-						else
-							neighbors.Add((row + i, col + j), this[row + i, col + j]);
-					}
+					(int row, int col) neighbor = GetLoopSize(row + i, col + j);
+					neighbors.Add(neighbor, this[neighbor.row, neighbor.col]);
 				}
 			}
 		}
 
-		public Dictionary<(int, int), int> GetNeighbors(int row, int col)
+		public Dictionary<(int, int), Point> GetNeighbors(int row, int col)
 		{
-			(row, col) = (Math.Abs(row), Math.Abs(col));
-			if (IsOutOfRange(row, col))
-				throw new Exception("Index out of range");
+			Dictionary<(int row, int col), Point> neighbors = new Dictionary<(int, int), Point>();
 
-			Dictionary<(int row, int col), int> neighbors = new Dictionary<(int, int), int>(); // ?
-			
 			AddNeighbors(neighbors, row, col);
 			return neighbors;
 		}
@@ -192,7 +149,7 @@ namespace SparseMatrix
 			return str;
 		}
 
-		public IEnumerator GetEnumerator() // изменить для упорядоченного вывода соседей?
+		public IEnumerator GetEnumerator()
 		{
 			return elements.GetEnumerator();
 		}
