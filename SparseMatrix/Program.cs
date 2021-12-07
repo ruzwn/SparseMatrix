@@ -7,28 +7,7 @@ namespace SparseMatrix
     {
         static void Main(string[] args)
         {
-            SparseMatrix m1 = new SparseMatrix(5, 4);
-            Console.WriteLine(m1.Size);
-            Point p = new Point(1, 1);
-            m1.ChangeElem(1, 1, p);
-            Console.WriteLine(m1[1, 1]);
-            Console.WriteLine(m1[5, 4]);
-            Console.WriteLine(m1); 
-            Dictionary<(int, int), Point> temp1 = m1.GetNeighbors(2, 2);
-            foreach (var (key, val) in temp1)
-            {
-                Console.WriteLine(key);
-            }
-
-            Console.WriteLine();
-            temp1 = m1.GetNeighbors(1, 1);
-            foreach (var (key, val) in temp1)
-            {
-                Console.WriteLine(key);
-            }
-
-            Point[,] arr = new Point[0, 0];
-            SparseMatrix m2 = new SparseMatrix(arr);
+            
         }
     }
 }
